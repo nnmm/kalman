@@ -25,12 +25,12 @@ def kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u):
 	sigmatt = np.empty((n, p, p))
 	sigmatt[0] = sigma0
 	# Kalman gain
-	k = np.empty((n, p, 2))
+	k = np.empty((n, p, q))
 
 
 	for t, yt in enumerate(data, start=1):
 		# (4.24) – is the u_t in the poly A_t from the pdf?
-		xtt1[t] = phi.dot(xtt[t]) + a.dot(u)
+		xtt1[t] = phi.dot(xtt[t-1]) + a.dot(u)
 		# (4.25)
 		sigmatt1[t] = phi.dot(sigmatt[t]).dot(phi.T) + qmat
 		# (4.26)
@@ -50,8 +50,6 @@ def main(argv):
 	# with open(argv[0], 'r') as data:
 	data = np.loadtxt('../traj1.dat')
 
-	# not sure what some of the parameters are
-	# ordering of the parameters from more to less certain
 	# https://www.cl.cam.ac.uk/~rmf25/papers/Understanding%20the%20Basis%20of%20the%20Kalman%20Filter.pdf
 	
 	# sample period
@@ -68,14 +66,14 @@ def main(argv):
 	varv = 1
 
 
-	# assuming the Φ_t in the poly is Φ from the pdf
+	# Φ_t in the poly is Φ from the pdf
 	# X_k = Φ X_{k-1} + Π A_{k-1}
 	phi = np.eye(p)
 	phi[0, 2] = delta
 	phi[1, 3] = delta
 
 
-	# assuming the Ψ_t in the poly is Ψ from the pdf
+	# Ψ_t in the poly
 	psi = np.zeros((q, p))
 	psi[0, 0] = 1
 	psi[1, 1] = 1
@@ -94,7 +92,7 @@ def main(argv):
 	rmat = np.eye(q)*(varv*varv)
 
 	# As per question 5
-	sigma0 = np.eye(p)*10
+	sigma0 = np.eye(p)*100
 
 	# As per question 5
 	mu = np.zeros((p,))
@@ -104,15 +102,9 @@ def main(argv):
 	b = np.zeros((q, r))
 	u = np.zeros((r,))
 
-	mat_pi = np.zeros((p, q))
-	mat_pi[0, 0] = delta*delta/2
-	mat_pi[1, 1] = delta*delta/2
-	mat_pi[2, 0] = delta
-	mat_pi[3, 1] = delta
-
-	# TODO: Plot this once it works
-	print kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u)
-	print data
+	# TODO: Plot this instead of printing
+	print kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u)[:,:2]
+	
 
 if __name__ == '__main__':
 	# if len(sys.argv) != 2:

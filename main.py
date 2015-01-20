@@ -42,7 +42,7 @@ def kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u):
 		sigmatt[t] = (ident - k[t].dot(psi)).dot(sigmatt1[t])
 	
 	# Actually, I think we are only interested in xtt
-	return xtt1, xtt, sigmatt1, sigmatt
+	return xtt
 
 
 
@@ -52,7 +52,8 @@ def main(argv):
 
 	# not sure what some of the parameters are
 	# ordering of the parameters from more to less certain
-
+	# https://www.cl.cam.ac.uk/~rmf25/papers/Understanding%20the%20Basis%20of%20the%20Kalman%20Filter.pdf
+	
 	# sample period
 	delta = 1
 	# state space dimension
@@ -61,6 +62,11 @@ def main(argv):
 	q = 2
 	# "exogenous input" dimension
 	r = 3
+	# Variance of the white noise A
+	vara = 1
+	# Variance of the white noise V
+	varv = 1
+
 
 	# assuming the Φ_t in the poly is Φ from the pdf
 	# X_k = Φ X_{k-1} + Π A_{k-1}
@@ -74,14 +80,29 @@ def main(argv):
 	psi[0, 0] = 1
 	psi[1, 1] = 1
 
-	# dunno
-	qmat = np.empty((p, p))
-	rmat = np.empty((q, q))
+	# Q = cov(W_k) = cov(Π A_{k-1})
+	qmat = np.zeros((p, p))
+	qmat[0, 0] = vara*(delta**4)/4.0
+	qmat[1, 1] = vara*(delta**4)/4.0
+	qmat[0, 2] = vara*(delta**3)/2.0
+	qmat[1, 3] = vara*(delta**3)/2.0
+	qmat[2, 0] = vara*(delta**3)/2.0
+	qmat[3, 1] = vara*(delta**3)/2.0
+	qmat[2, 3] = vara*(delta**2)
+	qmat[3, 3] = vara*(delta**2)
+
+	rmat = np.eye(q)*(varv*varv)
+
+	# As per question 5
+	sigma0 = np.eye(p)*10
+
+	# As per question 5
+	mu = np.zeros((p,))
+
+	# we don't have any of that
 	a = np.zeros((p, r))
 	b = np.zeros((q, r))
 	u = np.zeros((r,))
-	mu = np.zeros((p,))
-	sigma0 = np.eye(p)
 
 	mat_pi = np.zeros((p, q))
 	mat_pi[0, 0] = delta*delta/2
@@ -91,7 +112,7 @@ def main(argv):
 
 	# TODO: Plot this once it works
 	print kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u)
-
+	print data
 
 if __name__ == '__main__':
 	# if len(sys.argv) != 2:

@@ -6,6 +6,71 @@ import matplotlib.pyplot as plt
 import sys
 
 
+def setup_parameters(observs):
+	# sample period
+	delta = 1
+	# state space dimension
+	p = 4
+	# observation space dimension
+	q = 2
+	# "exogenous input" dimension
+	r = 3
+	# Variance of the white noise A = σ²
+	vara = 1
+	# Variance of the white noise V = ρ²
+	varv = calc_rhosq(observs)
+
+	# Φ_t in the poly is Φ from the pdf
+	# X_k = Φ X_{k-1} + Π A_{k-1}
+	phi = np.eye(p)
+	phi[0, 2] = delta
+	phi[1, 3] = delta
+
+	# Ψ_t in the poly
+	psi = np.zeros((q, p))
+	psi[0, 0] = 1
+	psi[1, 1] = 1
+
+	# Q = cov(W_k) = cov(Π A_{k-1})
+	qmat = np.zeros((p, p))
+	qmat[0, 0] = vara*(delta**4)/4.0
+	qmat[1, 1] = vara*(delta**4)/4.0
+	qmat[0, 2] = vara*(delta**3)/2.0
+	qmat[1, 3] = vara*(delta**3)/2.0
+	qmat[2, 0] = vara*(delta**3)/2.0
+	qmat[3, 1] = vara*(delta**3)/2.0
+	qmat[2, 3] = vara*(delta**2)
+	qmat[3, 3] = vara*(delta**2)
+
+	# R = cov(V_k)
+	rmat = np.eye(q)*varv
+
+	# As per question 5
+	sigma0 = np.eye(p)*100
+
+	# As per question 5
+	mu = np.zeros((p,))
+
+	# we don't have any of that
+	a = np.zeros((p, r))
+	b = np.zeros((q, r))
+	u = np.zeros((r,))
+	return (qmat, rmat, a, b, psi, phi, mu, sigma0, u)
+
+
+# calculate ρ² from the two datasets
+def calc_rhosq(observs):
+	diff = observs[0] - observs[1]
+	# diff is the difference (= sum) of two centered gaussians
+	# so diff is gaussian with mean 0 and variance 2ρ²
+	# the diagonal entries of the sample covariance are estimates of 2ρ²
+	samplecov = np.cov(diff.T)
+	rhosq = samplecov.trace()/(2.0*samplecov.shape[0])
+	return rhosq
+
+
+# Kalman filtering
+# https://www.cl.cam.ac.uk/~rmf25/papers/Understanding%20the%20Basis%20of%20the%20Kalman%20Filter.pdf
 # maybe rewrite this using iterators?
 # also make it more general so a, b, psi, phi and u can depend on t
 def kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u):
@@ -47,75 +112,47 @@ def kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u):
 	# Actually, I think we are only interested in xtt
 	return xtt
 
-def plot_trajectories(trjc, data):
-	x = np.linspace(0, 1, len(trjc))
-	plt.plot(trjc[:,0], trjc[:,1])
-	plt.scatter(data[:,0], data[:,1])
+
+# nice visualization
+def plot_trajectories(trjc, observs):
+	fig, ax = plt.subplots(1)
+
+	# line plots
+	ax.plot(trjc[:,0], trjc[:,1], '-', lw=2, label='Filtered trajectory')
+	ax.plot(observs[0][:,0], observs[0][:,1], '^--', label='Observed trajectory')
+	# ax.plot(observs[1][:,0], observs[1][:,1], label='Observed trajectory 2')
+
+
+	# Words
+	ax.set_title('Kalman filtering of 2D trajectory')
+	ax.set_xlabel('x position')
+	ax.set_ylabel('y position')
+	ax.grid()
+	ax.legend()
+
+	# finally
 	plt.show()
 
+
+# set up the project-specific parameters, filter and plot
 def main(argv):
-	# with open(argv[0], 'r') as data:
-	data = np.loadtxt('../traj1.dat')
+	observs = []
+	observs.append(np.loadtxt(argv[0]))
+	observs.append(np.loadtxt(argv[1]))
+	data = observs[0]
 
-	# https://www.cl.cam.ac.uk/~rmf25/papers/Understanding%20the%20Basis%20of%20the%20Kalman%20Filter.pdf
-	
-	# sample period
-	delta = 1
-	# state space dimension
-	p = 4
-	# observation space dimension
-	q = 2
-	# "exogenous input" dimension
-	r = 3
-	# Variance of the white noise A
-	vara = 1
-	# Variance of the white noise V
-	varv = 1
+	params = setup_parameters(observs)
+	trjc = kalman(data, *params)[:,:2]
 
-
-	# Φ_t in the poly is Φ from the pdf
-	# X_k = Φ X_{k-1} + Π A_{k-1}
-	phi = np.eye(p)
-	phi[0, 2] = delta
-	phi[1, 3] = delta
-
-
-	# Ψ_t in the poly
-	psi = np.zeros((q, p))
-	psi[0, 0] = 1
-	psi[1, 1] = 1
-
-	# Q = cov(W_k) = cov(Π A_{k-1})
-	qmat = np.zeros((p, p))
-	qmat[0, 0] = vara*(delta**4)/4.0
-	qmat[1, 1] = vara*(delta**4)/4.0
-	qmat[0, 2] = vara*(delta**3)/2.0
-	qmat[1, 3] = vara*(delta**3)/2.0
-	qmat[2, 0] = vara*(delta**3)/2.0
-	qmat[3, 1] = vara*(delta**3)/2.0
-	qmat[2, 3] = vara*(delta**2)
-	qmat[3, 3] = vara*(delta**2)
-
-	rmat = np.eye(q)*(varv*varv)
-
-	# As per question 5
-	sigma0 = np.eye(p)*100
-
-	# As per question 5
-	mu = np.zeros((p,))
-
-	# we don't have any of that
-	a = np.zeros((p, r))
-	b = np.zeros((q, r))
-	u = np.zeros((r,))
-
-	trjc = kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u)[:,:2]
-	print(trjc)
-	plot_trajectories(trjc, data)
+	# print(trjc)
+	plot_trajectories(trjc, observs)
 	
 
 if __name__ == '__main__':
 	# if len(sys.argv) != 2:
 	# 	print("Pass data file as parameter")
 	# 	sys.exit(2)
+	if len(sys.argv) == 1:
+		sys.argv.append('traj1.dat')
+		sys.argv.append('traj2.dat')
 	main(sys.argv[1:])

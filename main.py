@@ -1,5 +1,8 @@
 # coding: utf-8
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+#import seaborn as sns
 import sys
 
 
@@ -44,7 +47,11 @@ def kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u):
 	# Actually, I think we are only interested in xtt
 	return xtt
 
-
+def plot_trajectories(trjc, data):
+	x = np.linspace(0, 1, len(trjc))
+	plt.plot(trjc[:,0], trjc[:,1])
+	plt.scatter(data[:,0], data[:,1])
+	plt.show()
 
 def main(argv):
 	# with open(argv[0], 'r') as data:
@@ -102,8 +109,9 @@ def main(argv):
 	b = np.zeros((q, r))
 	u = np.zeros((r,))
 
-	# TODO: Plot this instead of printing
-	print kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u)[:,:2]
+	trjc = kalman(data, qmat, rmat, a, b, psi, phi, mu, sigma0, u)[:,:2]
+	print(trjc)
+	plot_trajectories(trjc, data)
 	
 
 if __name__ == '__main__':
